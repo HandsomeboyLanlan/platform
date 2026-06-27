@@ -1,0 +1,127 @@
+/**
+ * @file        QD4310.c
+ * @brief       基于HAL库的QD4310电机CAN总线控制库
+ * @details
+ * @author      Liu-Curiousity (2675794963@qq.com)
+ * @date        2026-6-15
+ * @version     V1.2.0
+ * @note
+ * @warning
+ * @par         历史版本:
+ *		        V1.1.0创建于2026-1-25
+ *		        V1.2.0创建于2026-6-15, 添加零点设置和重启设备
+ * @copyright   (c) 2026 QDrive
+ */
+
+#include "main.h"
+#include "QD4310.h"
+
+/*
+ * @brief 限制浮点数在指定范围内
+ * @param value 待限制的值
+ * @param min 最小值
+ * @param max 最大值
+ * @return 限制后的值
+ */
+static float QD4310_Clamp(float value, float min, float max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
+/*
+ * @brief 发送命令到QD4310电机
+ * @param motor 电机结构体指针
+ * @param cmd 命令类型（如使能=0x01、转速=0x04 等）
+ * @param value 命令值
+ */
+void QD4310_SendCommand(QD4310_t *motor, QD4310_Command_t cmd, int16_t value) {
+    static uint8_t TxBuffer[3];
+    TxBuffer[0] = (uint8_t)cmd;
+    // 将int16_t值拆分为两个字节
+    TxBuffer[1] = (uint8_t)(value & 0xFF);
+    TxBuffer[2] = (uint8_t)((value >> 8) & 0xFF);
+
+    uint32_t txMailbox = CAN_TX_MAILBOX0;
+    CAN_TxHeaderTypeDef TxHeader;
+    TxHeader.IDE = CAN_ID_STD;
+    TxHeader.RTR = CAN_RTR_DATA;
+    TxHeader.StdId = 0x400 + motor->id;
+    TxHeader.ExtId = 0x400 + motor->id;
+    TxHeader.TransmitGlobalTime = DISABLE;
+    TxHeader.DLC = 3;
+    HAL_CAN_AddTxMessage(motor->hcan1, &TxHeader, TxBuffer, &txMailbox);
+    while (HAL_CAN_GetTxMailboxesFreeLevel(motor->hcan1) == 0);
+}
+
+
+// 更新电机状态
+void QD4310_Update(QD4310_t *motor, const uint8_t feedback[8]) {
+    motor->enabled = feedback[0] & 0x01;
+
+    // 重构int16_t值从字节数组
+    int16_t current_raw = (int16_t)((feedback[3] << 8) | feedback[2]);
+    motor->current = (float)current_raw * 10.0f / INT16_MAX;
+
+    int16_t speed_raw = (int16_t)((feedback[5] << 8) | feedback[4]);
+    motor->speed = (float)speed_raw * 1000.0f / 32767.0f;
+
+    uint16_t angle_raw = (uint16_t)((feedback[7] << 8) | feedback[6]);
+    motor->angle = (float)angle_raw * QD4310_TWO_PI / UINT16_MAX;
+}
+
+
+// 使能电机
+void QD4310_Enable(QD4310_t *motor) {
+    QD4310_SendCommand(motor, QD4310_CMD_ENABLE, 0x0000);
+}
+
+// 失能电机
+void QD4310_Disable(QD4310_t *motor) {
+    QD4310_SendCommand(motor, QD4310_CMD_DISABLE, 0x0000);
+}
+
+// 重启电机
+void QD4310_Reboot(QD4310_t *motor) {
+    QD4310_SendCommand(motor, QD4310_CMD_REBOOT, 0x0000);
+}
+
+// 设置电机零点
+void QD4310_SetZeroPos(QD4310_t *motor) {
+    QD4310_SendCommand(motor, QD4310_CMD_SET_ZERO_POS, 0x0000);
+}
+
+// 设置电机角度
+void QD4310_SetAngle(QD4310_t *motor, float angle) {
+    angle = QD4310_Clamp(angle, 0.0f, QD4310_TWO_PI);
+    int16_t angle_value = (int16_t)(angle / QD4310_TWO_PI * UINT16_MAX);
+    QD4310_SendCommand(motor, QD4310_CMD_ANGLE, angle_value);
+}
+
+// 设置电机步进角度
+void QD4310_SetStepAngle(QD4310_t *motor, float step_angle) {
+    step_angle = QD4310_Clamp(step_angle, QD4310_MIN_STEPANGLE, QD4310_MAX_STEPANGLE);
+    int16_t step_angle_value = (int16_t)(step_angle / QD4310_MAX_STEPANGLE * INT16_MAX);
+    QD4310_SendCommand(motor, QD4310_CMD_STEP_ANGLE, step_angle_value);
+}
+
+// 设置电机转速
+void QD4310_SetSpeed(QD4310_t *motor, float speed) {
+    speed = QD4310_Clamp(speed, QD4310_MIN_SPEED, QD4310_MAX_SPEED);
+    int16_t speed_value = (int16_t)(speed / QD4310_MAX_SPEED * INT16_MAX);
+    QD4310_SendCommand(motor, QD4310_CMD_SPEED, speed_value);
+}
+
+// 设置电机低速
+void QD4310_SetLowSpeed(QD4310_t *motor, float speed) {
+    speed = QD4310_Clamp(speed, QD4310_MIN_SPEED, QD4310_MAX_SPEED);
+    int16_t speed_value = (int16_t)(speed / QD4310_MAX_SPEED * INT16_MAX);
+    QD4310_SendCommand(motor, QD4310_CMD_LOW_SPEED, speed_value);
+}
+
+// 设置电机电流
+void QD4310_SetCurrent(QD4310_t *motor, float current) {
+    current = QD4310_Clamp(current, QD4310_MIN_CURRENT, QD4310_MAX_CURRENT);
+    int16_t current_value = (int16_t)(current / QD4310_MAX_CURRENT * INT16_MAX);
+    QD4310_SendCommand(motor, QD4310_CMD_CURRENT, current_value);
+}

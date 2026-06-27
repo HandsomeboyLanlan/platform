@@ -1,0 +1,27 @@
+--cpu Cortex-M3
+"platform\startup_stm32f103xb.o"
+"platform\main.o"
+"platform\gpio.o"
+"platform\can.o"
+"platform\stm32f1xx_it.o"
+"platform\stm32f1xx_hal_msp.o"
+"platform\stm32f1xx_hal_gpio_ex.o"
+"platform\stm32f1xx_hal_can.o"
+"platform\stm32f1xx_hal.o"
+"platform\stm32f1xx_hal_rcc.o"
+"platform\stm32f1xx_hal_rcc_ex.o"
+"platform\stm32f1xx_hal_gpio.o"
+"platform\stm32f1xx_hal_dma.o"
+"platform\stm32f1xx_hal_cortex.o"
+"platform\stm32f1xx_hal_pwr.o"
+"platform\stm32f1xx_hal_flash.o"
+"platform\stm32f1xx_hal_flash_ex.o"
+"platform\stm32f1xx_hal_exti.o"
+"platform\system_stm32f1xx.o"
+"platform\qd4310.o"
+"platform\interrupt.o"
+"platform\my_can.o"
+--strict --scatter "platform\platform.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "platform.map" -o platform\platform.axf
