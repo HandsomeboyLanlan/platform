@@ -4,8 +4,13 @@
 #include "main.h"
 #include "QD4310.h"
 #include "pid.h"
+#include "control.h"
+#include "interrupt.h"
+#include "usart.h"
 
-extern PID_t pid_yaw, pid_pitch;
-extern QD4310_t motor_yaw, motor_pitch;
+extern PID_t pid_yaw_handle, pid_pitch_handle;
+extern QD4310_t motor_yaw_handle, motor_pitch_handle;
+extern Maixcam_Data_t maixcam_data_handle;
+extern UART_Rx_Data_t uart3_rx_data_handle;
 
 #endif

@@ -19,11 +19,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "can.h"
+#include "dma.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "QD4310.h"
 #include "interrupt.h"
 #include "my_can.h"
 #include "config.h"
@@ -91,41 +92,23 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_CAN_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   CAN_InterfaceInit();  // 初始化CAN接口
-  HAL_Delay(500);                   // 等待电机启动
-  QD4310_Enable(&motor_yaw);         // 使能电机
-  QD4310_SetSpeed(&motor_yaw, 0.0f); // 设置电机转速为0rpm
+  HAL_Delay(500);       // 等待电机启动
+  Control_Init();       // 云台控制初始化
+  HAL_UARTEx_ReceiveToIdle_DMA(uart3_rx_data_handle.huart, uart3_rx_data_handle.uart3_rx_buffer, UART3_RX_BUFFER_SIZE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  int flag = 0;
-  uint8_t last_state = GPIO_PIN_SET;
   while (1)
   {
-    uint8_t cur_state = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0);
-    // 下降沿触发，按一次只响应一次
-    if (last_state == GPIO_PIN_SET && cur_state == GPIO_PIN_RESET) {
-      flag = !flag;
-      if (flag) {
-        QD4310_SetAngle(&motor_yaw, QD4310_PI);
-      } else {
-        QD4310_SetAngle(&motor_yaw, QD4310_TWO_PI);
-      }
+    if (MaixCam_DataReady()) {
+      Gimbal_Track(maixcam_data_handle);  // 云台视觉跟踪
     }
-    last_state = cur_state;
-    
-    // for (int i = 0; i <= 100; i++) {
-    //   QD4310_SetSpeed(&Motor_0, (float)i);
-    //   HAL_Delay(50); // 50ms间隔 × 100次 = 5秒
-    // }
-
-    // for (int i = 100; i >= 0; i--) {
-    //   QD4310_SetSpeed(&Motor_0, (float)i);
-    //   HAL_Delay(50);
-    // }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

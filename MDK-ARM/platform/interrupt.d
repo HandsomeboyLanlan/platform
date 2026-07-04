@@ -28,6 +28,7 @@ platform\interrupt.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h
 platform\interrupt.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h
 platform\interrupt.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
 platform\interrupt.o: ../Core/Inc/can.h
-platform\interrupt.o: ..\Hardware\my_can.h
+platform\interrupt.o: ..\Hardware\config.h
 platform\interrupt.o: ..\Hardware\QD4310.h
 platform\interrupt.o: E:\Keil5\ARM\ARMCC\Bin\..\include\stdbool.h
+platform\interrupt.o: ..\Hardware\pid.h

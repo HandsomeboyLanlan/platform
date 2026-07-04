@@ -30,3 +30,5 @@ platform\my_can.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
 platform\my_can.o: ..\Hardware\QD4310.h
 platform\my_can.o: E:\Keil5\ARM\ARMCC\Bin\..\include\stdbool.h
 platform\my_can.o: ../Core/Inc/can.h
+platform\my_can.o: ..\Hardware\config.h
+platform\my_can.o: ..\Hardware\pid.h

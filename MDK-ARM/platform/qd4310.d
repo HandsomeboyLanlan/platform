@@ -1,4 +1,5 @@
 platform\qd4310.o: ..\Hardware\QD4310.c
+platform\qd4310.o: ..\Hardware\QD4310.h
 platform\qd4310.o: ../Core/Inc/main.h
 platform\qd4310.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h
 platform\qd4310.o: ../Core/Inc/stm32f1xx_hal_conf.h
@@ -26,6 +27,5 @@ platform\qd4310.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_cortex.h
 platform\qd4310.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h
 platform\qd4310.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h
 platform\qd4310.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
-platform\qd4310.o: ..\Hardware\QD4310.h
 platform\qd4310.o: E:\Keil5\ARM\ARMCC\Bin\..\include\stdbool.h
 platform\qd4310.o: ../Core/Inc/can.h
