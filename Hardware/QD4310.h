@@ -1,24 +1,22 @@
-/**
- * @file        QD4310.h
- * @brief       基于HAL库的QD4310电机CAN总线控制库
- * @details
- * @author      Liu-Curiousity (2675794963@qq.com)
- * @date        2026-6-15
- * @version     V1.2.0
- * @note
- * @warning
- * @par         历史版本:
- *		        V1.1.0创建于2026-1-25
- *		        V1.2.0创建于2026-6-15, 添加零点设置和重启设备
- * @copyright   (c) 2026 QDrive
- */
+#ifndef __QD4310_H
+#define __QD4310_H
 
-#ifndef QD4310_H
-#define QD4310_H
-
+#include "main.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include "can.h"
+
+// 数学常数定义
+#define QD4310_PI (3.14159265358979323846f)
+#define QD4310_TWO_PI (2.0f * QD4310_PI)
+
+// 限制值宏定义
+#define QD4310_MAX_SPEED (1000.0f)
+#define QD4310_MIN_SPEED (-1000.0f)
+#define QD4310_MAX_CURRENT (10.0f)
+#define QD4310_MIN_CURRENT (-10.0f)
+#define QD4310_MAX_STEPANGLE (QD4310_TWO_PI)
+#define QD4310_MIN_STEPANGLE (-QD4310_TWO_PI)
 
 // 命令枚举
 typedef enum {
@@ -103,20 +101,6 @@ void QD4310_SetLowSpeed(QD4310_t *motor, float speed);
  * @param current 设置的转速,[-10,10]
  */
 void QD4310_SetCurrent(QD4310_t *motor, float current);
-
 void QD4310_SendCommand(QD4310_t *motor, QD4310_Command_t cmd, int16_t value);
 
-// 数学常数定义
-#define QD4310_PI (3.14159265358979323846f)
-#define QD4310_TWO_PI (2.0f * QD4310_PI)
-
-// 限制值宏定义
-#define QD4310_MAX_SPEED (1000.0f)
-#define QD4310_MIN_SPEED (-1000.0f)
-#define QD4310_MAX_CURRENT (10.0f)
-#define QD4310_MIN_CURRENT (-10.0f)
-#define QD4310_MAX_STEPANGLE (QD4310_TWO_PI)
-#define QD4310_MIN_STEPANGLE (-QD4310_TWO_PI)
-
-
-#endif //QD4310_H
+#endif

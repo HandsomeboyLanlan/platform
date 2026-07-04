@@ -56,6 +56,12 @@ virtualFolder:
         - path: ../Hardware/interrupt.h
         - path: ../Hardware/my_can.c
         - path: ../Hardware/my_can.h
+        - path: ../Hardware/control.c
+        - path: ../Hardware/control.h
+        - path: ../Hardware/pid.c
+        - path: ../Hardware/pid.h
+        - path: ../Hardware/config.c
+        - path: ../Hardware/config.h
       folders: []
     - name: ::CMSIS
       files: []

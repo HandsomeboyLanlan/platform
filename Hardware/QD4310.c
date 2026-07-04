@@ -1,19 +1,3 @@
-/**
- * @file        QD4310.c
- * @brief       基于HAL库的QD4310电机CAN总线控制库
- * @details
- * @author      Liu-Curiousity (2675794963@qq.com)
- * @date        2026-6-15
- * @version     V1.2.0
- * @note
- * @warning
- * @par         历史版本:
- *		        V1.1.0创建于2026-1-25
- *		        V1.2.0创建于2026-6-15, 添加零点设置和重启设备
- * @copyright   (c) 2026 QDrive
- */
-
-#include "main.h"
 #include "QD4310.h"
 
 /*

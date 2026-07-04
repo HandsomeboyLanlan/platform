@@ -1,7 +1,5 @@
 #include "my_can.h"
 
-QD4310_t Motor_0 = {.id = 0, .hcan1 = &hcan}; // 初始化电机结构体，使用CAN外设，ID为0
-
 /*
  * @brief CAN的初始化函数，配置滤波器、启动CAN外设并激活接收中断
  */

@@ -3,6 +3,6 @@
 
 #include "main.h"
 #include "can.h"
-#include "my_can.h"
+#include "config.h"
 
 #endif

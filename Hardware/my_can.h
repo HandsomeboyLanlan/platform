@@ -4,8 +4,7 @@
 #include "main.h"
 #include "QD4310.h"
 #include "can.h"
-
-extern QD4310_t Motor_0;
+#include "config.h"
 
 void CAN_InterfaceInit(void);
 
