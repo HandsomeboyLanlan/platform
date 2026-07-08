@@ -89,11 +89,11 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
   * @retval None
   */
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
-    if (huart->Instance == USART3) {
+    if (huart->Instance == USART1) {
         for (uint16_t i = 0; i < Size; i++) {
-            MaixCam_ParseByte(uart3_rx_data_handle.uart3_rx_buffer[i]);
+            MaixCam_ParseByte(uart1_rx_data_handle.uart_rx_buffer[i]);
         }
         /* 重新启动DMA接收 */
-        HAL_UARTEx_ReceiveToIdle_DMA(huart, uart3_rx_data_handle.uart3_rx_buffer, UART3_RX_BUFFER_SIZE);
+        HAL_UARTEx_ReceiveToIdle_DMA(huart, uart1_rx_data_handle.uart_rx_buffer, UART3_RX_BUFFER_SIZE);
     }
 }

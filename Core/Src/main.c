@@ -94,16 +94,19 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_CAN_Init();
-  MX_USART3_UART_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   CAN_InterfaceInit();  // 初始化CAN接口
   HAL_Delay(500);       // 等待电机启动
   Control_Init();       // 云台控制初始化
-  HAL_UARTEx_ReceiveToIdle_DMA(uart3_rx_data_handle.huart, uart3_rx_data_handle.uart3_rx_buffer, UART3_RX_BUFFER_SIZE);
+  Gimbal_GotoZero();
+  HAL_UARTEx_ReceiveToIdle_DMA(uart1_rx_data_handle.huart, uart1_rx_data_handle.uart_rx_buffer, UART3_RX_BUFFER_SIZE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  //Set_Motor_Speed(&motor_yaw_handle, 10);
+  //Set_Motor_Speed(&motor_pitch_handle, 10);
   while (1)
   {
     if (MaixCam_DataReady()) {

@@ -14,24 +14,24 @@ QD4310_t motor_pitch_handle = {
 
 /* pid_yaw初始化句柄 */
 PID_t pid_yaw_handle = {
-    .kp = 0.5f,
-    .ki = 0.1f,
-    .kd = 0.05f,
+    .kp = 0.12f,
+    .ki = 0.0f,
+    .kd = 0.005f,
     .last_error = 0.0f,
     .integral = 0.0f,
     .integral_limit = 100.0f,
-    .output_limit = 1000.0f,
+    .output_limit = 120.0f,
 };
 
 /* pid_pitch初始化句柄 */
 PID_t pid_pitch_handle = {
-    .kp = 0.6f,
-    .ki = 0.12f,
-    .kd = 0.06f,
+    .kp = 0.16f,
+    .ki = 0.0f,
+    .kd = 0.0f,
     .last_error = 0.0f,
     .integral = 0.0f,
     .integral_limit = 100.0f,
-    .output_limit = 1000.0f,
+    .output_limit = 180.0f,
 };
 
 /* maixcam_data初始化句柄 */
@@ -42,7 +42,7 @@ Maixcam_Data_t maixcam_data_handle = {
 };
 
 /* uart3_rx_data初始化句柄 */
-UART_Rx_Data_t uart3_rx_data_handle = {
-    .huart = &huart3,
-    .uart3_rx_buffer = {0},
+UART_Rx_Data_t uart1_rx_data_handle = {
+    .huart = &huart1,
+    .uart_rx_buffer = {0},
 };
