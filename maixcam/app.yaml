@@ -1,0 +1,10 @@
+id: first
+name: 激光打靶
+version: 1.0.0
+author: Lanlan
+icon: app.png
+desc: 无
+files:
+  - camera_display.py
+  - main.py
+  - my_uart.py
