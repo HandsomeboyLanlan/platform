@@ -29,6 +29,7 @@
 #include "my_can.h"
 #include "config.h"
 #include "control.h"
+#include "vofa_debug.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -95,11 +96,13 @@ int main(void)
   MX_DMA_Init();
   MX_CAN_Init();
   MX_USART1_UART_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   CAN_InterfaceInit();  // 初始化CAN接口
   HAL_Delay(500);       // 等待电机启动
   Control_Init();       // 云台控制初始化
   Gimbal_GotoZero();
+  VOFA_DebugInit(&huart3);
   HAL_UARTEx_ReceiveToIdle_DMA(uart1_rx_data_handle.huart, uart1_rx_data_handle.uart_rx_buffer, UART3_RX_BUFFER_SIZE);
   /* USER CODE END 2 */
 
@@ -112,6 +115,7 @@ int main(void)
     if (MaixCam_DataReady()) {
       Gimbal_Track(maixcam_data_handle);  // 云台视觉跟踪
     }
+    VOFA_DebugSendPeriod(0);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

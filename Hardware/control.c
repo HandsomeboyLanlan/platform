@@ -1,6 +1,7 @@
 #include "main.h"
 #include "control.h"
 #include "config.h"
+#include "vofa_debug.h"
 
 #define GIMBAL_HOME_YAW_ANGLE 0.0f
 #define GIMBAL_HOME_PITCH_ANGLE 0.0f
@@ -26,6 +27,7 @@ void Set_Motor_Speed(QD4310_t *motor, float speed) {
     // } else {
     //     QD4310_SetSpeed(motor, speed); // 高速模式
     // }
+    VOFA_DebugUpdateCommand(motor, speed); // 记录VOFA调试用的目标速度
     QD4310_SetSpeed(motor, speed);
 }
 

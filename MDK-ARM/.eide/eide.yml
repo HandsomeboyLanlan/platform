@@ -65,6 +65,8 @@ virtualFolder:
         - path: ../Hardware/control.h
         - path: ../Hardware/pid.c
         - path: ../Hardware/pid.h
+        - path: ../Hardware/vofa_debug.c
+        - path: ../Hardware/vofa_debug.h
       folders: []
     - name: ::CMSIS
       files: []
