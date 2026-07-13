@@ -2,24 +2,14 @@
 #include "config.h"
 #include <stdio.h>
 
-/* 串口阻塞发送超时时间，VOFA调试不应长时间占用主循环 timeout */
-#define VOFA_TX_TIMEOUT_MS 10U
+#define VOFA_TX_TIMEOUT_MS 10U      // 串口阻塞发送超时时间，VOFA调试不应长时间占用主循环 timeout
+#define VOFA_TX_BUFFER_SIZE 192U    // CSV单帧发送缓冲区长度 buffer
+#define VOFA_PID_PARAM_MAX 10.0f    // 在线调参PID参数最大值，防止串口误输入过大的参数
 
-/* CSV单帧发送缓冲区长度 buffer */
-#define VOFA_TX_BUFFER_SIZE 192U
-
-/* 在线调参PID参数最大值，防止串口误输入过大的参数 */
-#define VOFA_PID_PARAM_MAX 10.0f
-
-/* VOFA使用的串口句柄，由VOFA_DebugInit传入 uart */
-static UART_HandleTypeDef *vofa_huart;
-
-/* 上一次发送VOFA数据的系统时间 tick */
-static uint32_t vofa_last_send_tick;
-
-/* yaw/pitch轴最近一次下发给电机的目标速度，单位rpm */
-static float vofa_yaw_cmd_speed;
-static float vofa_pitch_cmd_speed;
+static UART_HandleTypeDef *vofa_huart;  // VOFA使用的串口句柄，由VOFA_DebugInit传入 uart
+static uint32_t vofa_last_send_tick;    // 上一次发送VOFA数据的系统时间 tick
+static float vofa_yaw_cmd_speed;        // yaw轴最近一次下发给电机的目标速度，单位rpm
+static float vofa_pitch_cmd_speed;      // pitch轴最近一次下发给电机的目标速度，单位rpm
 
 /* VOFA串口在线调参接收缓存 */
 static uint8_t vofa_rx_byte;
