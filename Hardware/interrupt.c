@@ -1,6 +1,7 @@
 #include "interrupt.h"
 #include "config.h"
 #include "usart.h"
+#include "vofa_debug.h"
 
 static volatile uint8_t g_maixcam_ready;  // 新数据就绪标志
 
@@ -95,5 +96,16 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
         }
         /* 重新启动DMA接收 */
         HAL_UARTEx_ReceiveToIdle_DMA(huart, uart1_rx_data_handle.uart_rx_buffer, UART3_RX_BUFFER_SIZE);
+    }
+}
+
+/**
+  * @brief  UART接收完成中断回调
+  * @param  huart: UART句柄
+  * @retval None
+  */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART3) {
+        VOFA_DebugRxCpltCallback(huart);
     }
 }
