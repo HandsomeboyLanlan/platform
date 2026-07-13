@@ -3,11 +3,13 @@
 #include "config.h"
 #include "vofa_debug.h"
 
-// 弧度转角度系数，180/pi
-#define GIMBAL_RAD_TO_DEG 57.2957795f
-
 static float gimbal_pitch_up_limit_deg = GIMBAL_PITCH_DEFAULT_UP_LIMIT_DEG;
 static float gimbal_pitch_down_limit_deg = GIMBAL_PITCH_DEFAULT_DOWN_LIMIT_DEG;
+static float gimbal_yaw_error_filter;   
+static float gimbal_pitch_error_filter;
+static float gimbal_yaw_speed_last;
+static float gimbal_pitch_speed_last;
+static uint8_t gimbal_error_filter_initialized;
 
 /**
  * @brief 求浮点数绝对值
@@ -29,6 +31,57 @@ static float Gimbal_Clamp(float value, float min, float max) {
     if (value < min) return min;
     if (value > max) return max;
     return value;
+}
+
+/**
+ * @brief 视觉误差死区处理，减小靶心附近像素噪声造成的电机抖动
+ * @param error 输入误差，单位pixel
+ * @param deadband 死区大小，单位pixel
+ * @return 死区处理后的误差
+ */
+static float Gimbal_ApplyPixelDeadband(float error, float deadband) {
+    if (Gimbal_Abs(error) <= deadband) {
+        return 0.0f;
+    }
+    return error;
+}
+
+/**
+ * @brief 视觉误差一阶低通滤波
+ * @param raw_error 原始误差，单位pixel
+ * @param filter_value 滤波状态
+ * @return 滤波后的误差，单位pixel
+ */
+static float Gimbal_FilterVisionError(float raw_error, float *filter_value) {
+    *filter_value += GIMBAL_ERROR_FILTER_ALPHA * (raw_error - *filter_value);
+    return *filter_value;
+}
+
+/**
+ * @brief 限制目标速度每次变化量，让重负载yaw轴动作更平滑
+ * @param target_speed PID输出的目标速度，单位rpm
+ * @param last_speed 上一次下发的目标速度，单位rpm
+ * @param max_step 每次允许变化的最大速度，单位rpm
+ * @return 斜坡限幅后的目标速度，单位rpm
+ */
+static float Gimbal_LimitSpeedSlew(float target_speed, float *last_speed, float max_step) {
+    float delta = target_speed - *last_speed;
+
+    delta = Gimbal_Clamp(delta, -max_step, max_step);
+    *last_speed += delta;
+    return *last_speed;
+}
+
+/**
+ * @brief 清除视觉滤波和速度斜坡状态
+ * @note  目标丢失或重新进入视觉跟踪时调用，避免旧状态影响下一次跟踪
+ */
+static void Gimbal_ResetVisionState(void) {
+    gimbal_yaw_error_filter = 0.0f;
+    gimbal_pitch_error_filter = 0.0f;
+    gimbal_yaw_speed_last = 0.0f;
+    gimbal_pitch_speed_last = 0.0f;
+    gimbal_error_filter_initialized = 0;
 }
 
 /**
@@ -131,6 +184,7 @@ void Set_Motor_Speed(QD4310_t *motor, float speed) {
         // pitch轴不允许720度连续旋转，先经过软限位再下发速度
         speed = Gimbal_LimitPitchSpeed(speed);
     }
+    // yaw轴实测低速模式效果不好，当前统一使用QD4310_SetSpeed
     // if (speed <= 5 && speed >= -5) {
     //     QD4310_SetLowSpeed(motor, speed); // 低速模式
     // } else {
@@ -158,18 +212,56 @@ void Gimbal_GotoZero(void) {
  * @note  MaixCam端计算差值后传入，正负号决定电机转向
  */
 void Gimbal_Track(Maixcam_Data_t maixcam_data) {
+    float yaw_error;
+    float pitch_error;
+    float speed_yaw;
+    float speed_pitch;
+
     // 目标丢失，积分清零，电机停转
     if (!maixcam_data.target_valid) {
         pid_yaw_handle.integral   = 0.0f;
         pid_pitch_handle.integral = 0.0f;
+        pid_yaw_handle.last_error = 0.0f;
+        pid_pitch_handle.last_error = 0.0f;
+        Gimbal_ResetVisionState();
         Set_Motor_Speed(&motor_yaw_handle, 0);
         Set_Motor_Speed(&motor_pitch_handle, 0);
         return;
     }
 
-    // 像素误差直接送入PID → 输出电机速度
-    float speed_yaw = PID_Update(&pid_yaw_handle, -maixcam_data.pixel_dx);
-    float speed_pitch = PID_Update(&pid_pitch_handle, maixcam_data.pixel_dy);
+    // 像素误差先滤波、死区处理，再送入PID输出电机速度
+    yaw_error = -maixcam_data.pixel_dx;
+    pitch_error = maixcam_data.pixel_dy;
+    if (!gimbal_error_filter_initialized) {
+        gimbal_yaw_error_filter = yaw_error;
+        gimbal_pitch_error_filter = pitch_error;
+        gimbal_error_filter_initialized = 1;
+    }
+
+    // 视觉误差先滤波再做死区，减小靶心附近抖动
+    yaw_error = Gimbal_FilterVisionError(yaw_error, &gimbal_yaw_error_filter);
+    pitch_error = Gimbal_FilterVisionError(pitch_error, &gimbal_pitch_error_filter);
+    yaw_error = Gimbal_ApplyPixelDeadband(yaw_error, GIMBAL_YAW_PIXEL_DEADBAND);
+    pitch_error = Gimbal_ApplyPixelDeadband(pitch_error, GIMBAL_PITCH_PIXEL_DEADBAND);
+
+    // 误差进入死区后清除PID历史状态，防止积分让电机在靶心附近慢慢爬
+    if (yaw_error == 0.0f) {
+        pid_yaw_handle.integral = 0.0f;
+        pid_yaw_handle.last_error = 0.0f;
+        gimbal_yaw_speed_last = 0.0f;
+    }
+    if (pitch_error == 0.0f) {
+        pid_pitch_handle.integral = 0.0f;
+        pid_pitch_handle.last_error = 0.0f;
+        gimbal_pitch_speed_last = 0.0f;
+    }
+
+    speed_yaw = PID_Update(&pid_yaw_handle, yaw_error);
+    speed_pitch = PID_Update(&pid_pitch_handle, pitch_error);
+
+    // 目标速度做斜坡限幅，避免重负载yaw轴低速一快一慢
+    speed_yaw = Gimbal_LimitSpeedSlew(speed_yaw, &gimbal_yaw_speed_last, GIMBAL_YAW_SPEED_SLEW_RPM);
+    speed_pitch = Gimbal_LimitSpeedSlew(speed_pitch, &gimbal_pitch_speed_last, GIMBAL_PITCH_SPEED_SLEW_RPM);
 
     Set_Motor_Speed(&motor_yaw_handle, speed_yaw);
     Set_Motor_Speed(&motor_pitch_handle, speed_pitch);

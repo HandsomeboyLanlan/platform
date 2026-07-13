@@ -5,7 +5,7 @@
 #include "QD4310.h"
 
 #define VOFA_DEBUG_DEFAULT_PERIOD_MS 50U    // VOFA默认发送周期，单位ms period
-#define VOFA_PID_CMD_BUFFER_SIZE 64U    // VOFA串口在线调参命令长度
+#define VOFA_PID_CMD_BUFFER_SIZE 64U        // VOFA串口在线调参命令长度
 
 /**
  * @brief 初始化VOFA调试串口 init
