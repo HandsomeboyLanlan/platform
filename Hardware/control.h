@@ -38,6 +38,13 @@
 #define GIMBAL_YAW_SPEED_SLEW_RPM               2.0f
 #define GIMBAL_PITCH_SPEED_SLEW_RPM             1.5f
 
+// 激光与摄像头不共轴时的像素补偿，单位pixel；先按实际打点方向微调
+#define GIMBAL_LASER_OFFSET_X_PIXEL             -44.0f  // 激光落点偏右时增大该值，偏左时减小或设为负数
+#define GIMBAL_LASER_OFFSET_Y_PIXEL             -5.5f    // 激光落点偏下时增大该值，偏上时减小或设为负数
+
+// 目标丢失后的yaw轴搜索参数；靶纸在云台后方时，yaw轴低速自转直到重新识别到目标
+#define GIMBAL_SEARCH_YAW_SPEED_RPM             20.0f
+
 /* MaixCam数据结构体 */
 typedef struct {
     float pixel_dx;         // pixel_dx MaixCam目标X坐标 - 屏幕中心X坐标

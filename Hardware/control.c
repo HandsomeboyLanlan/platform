@@ -286,21 +286,22 @@ void Gimbal_Track(Maixcam_Data_t maixcam_data) {
     float speed_yaw;
     float speed_pitch;
 
-    // 目标丢失，积分清零，电机停转
+    // 目标丢失，积分清零，yaw轴进入搜索自转，直到MaixCam重新识别到目标。
     if (!maixcam_data.target_valid) {
         pid_yaw_handle.integral   = 0.0f;
         pid_pitch_handle.integral = 0.0f;
         pid_yaw_handle.last_error = 0.0f;
         pid_pitch_handle.last_error = 0.0f;
         Gimbal_ResetVisionState();
-        Set_Motor_Speed(&motor_yaw_handle, 0);
+        Set_Motor_Speed(&motor_yaw_handle, GIMBAL_SEARCH_YAW_SPEED_RPM);
         Set_Motor_Speed(&motor_pitch_handle, 0);
         return;
     }
 
-    // 像素误差先滤波、死区处理，再送入PID输出电机速度
-    yaw_error = -maixcam_data.pixel_dx;
-    pitch_error = maixcam_data.pixel_dy;
+    // MaixCam发送的是靶心相对摄像头中心的误差；这里叠加激光与摄像头不共轴补偿。
+    // X补偿为正时，云台会让摄像头中心对准靶心右侧一点，用于修正激光落点偏右的问题。
+    yaw_error = -(maixcam_data.pixel_dx + GIMBAL_LASER_OFFSET_X_PIXEL);
+    pitch_error = maixcam_data.pixel_dy + GIMBAL_LASER_OFFSET_Y_PIXEL;
     if (!gimbal_error_filter_initialized) {
         gimbal_yaw_error_filter = yaw_error;
         gimbal_pitch_error_filter = pitch_error;
