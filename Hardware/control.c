@@ -100,6 +100,43 @@ static float Gimbal_WrapRad(float angle) {
 }
 
 /**
+ * @brief 根据回零角度误差计算速度环目标转速
+ * @param angle_error_rad 目标角度 - 当前角度，单位rad，已经限制到[-pi, pi)
+ * @return 回零目标转速，单位rpm
+ */
+static float Gimbal_CalcZeroSpeed(float angle_error_rad) {
+    float angle_error_deg = angle_error_rad * GIMBAL_RAD_TO_DEG;
+    float speed_abs;
+
+    if (Gimbal_Abs(angle_error_deg) <= GIMBAL_ZERO_ANGLE_DEADBAND_DEG) {
+        return 0.0f;
+    }
+
+    // 距离零点较远时按最大速度回零，接近零点后自动降速，减小机械冲击。
+    speed_abs = Gimbal_Abs(angle_error_deg) * GIMBAL_ZERO_SPEED_GAIN;
+    speed_abs = Gimbal_Clamp(speed_abs, GIMBAL_ZERO_MIN_SPEED_RPM, GIMBAL_ZERO_MAX_SPEED_RPM);
+
+    return (angle_error_deg > 0.0f) ? speed_abs : -speed_abs;
+}
+
+/**
+ * @brief 等待yaw轴和pitch轴都收到电机反馈
+ * @return 1: 已收到反馈 0: 等待超时
+ */
+static uint8_t Gimbal_WaitMotorFeedback(void) {
+    uint32_t start_tick = HAL_GetTick();
+
+    while (!motor_yaw_handle.feedback_received || !motor_pitch_handle.feedback_received) {
+        if (HAL_GetTick() - start_tick >= GIMBAL_ZERO_FEEDBACK_TIMEOUT_MS) {
+            return 0;
+        }
+        HAL_Delay(GIMBAL_ZERO_CONTROL_PERIOD_MS);
+    }
+
+    return 1;
+}
+
+/**
  * @brief 获取pitch轴相对0点的角度
  * @return pitch轴相对GIMBAL_HOME_PITCH_ANGLE的角度，向上为正，单位deg
  */
@@ -196,14 +233,46 @@ void Set_Motor_Speed(QD4310_t *motor, float speed) {
 
 /**
  * @brief 云台回零函数
- * @note  将yaw轴和pitch轴电机转到零点位置
+ * @note  使用速度环缓慢回零，避免角度环直接回零时动作过快
  */
 void Gimbal_GotoZero(void) {
-    QD4310_SetAngle(&motor_yaw_handle, GIMBAL_HOME_YAW_ANGLE);
-    QD4310_SetAngle(&motor_pitch_handle, GIMBAL_HOME_PITCH_ANGLE);
-    HAL_Delay(200); // 等待电机转到零点位置
+    uint32_t start_tick = HAL_GetTick();
+    float yaw_error_rad;
+    float pitch_error_rad;
+    float yaw_speed;
+    float pitch_speed;
+
+    if (!Gimbal_WaitMotorFeedback()) {
+        Set_Motor_Speed(&motor_yaw_handle, 0.0f);
+        Set_Motor_Speed(&motor_pitch_handle, 0.0f);
+        return;
+    }
+
+    while (1) {
+        yaw_error_rad = Gimbal_WrapRad(GIMBAL_HOME_YAW_ANGLE - motor_yaw_handle.angle);
+        pitch_error_rad = Gimbal_WrapRad(GIMBAL_HOME_PITCH_ANGLE - motor_pitch_handle.angle);
+
+        yaw_speed = Gimbal_CalcZeroSpeed(yaw_error_rad);
+        pitch_speed = Gimbal_CalcZeroSpeed(pitch_error_rad);
+
+        Set_Motor_Speed(&motor_yaw_handle, yaw_speed);
+        Set_Motor_Speed(&motor_pitch_handle, pitch_speed);
+
+        if (yaw_speed == 0.0f && pitch_speed == 0.0f) {
+            break;
+        }
+
+        // 防止电机未上电、反馈异常或机械卡住时一直阻塞在回零函数中。
+        if (HAL_GetTick() - start_tick >= GIMBAL_ZERO_TIMEOUT_MS) {
+            break;
+        }
+
+        HAL_Delay(GIMBAL_ZERO_CONTROL_PERIOD_MS);
+    }
+
     Set_Motor_Speed(&motor_yaw_handle, 0.0f);
-    //Set_Motor_Speed(&motor_pitch_handle, 0.0f);
+    Set_Motor_Speed(&motor_pitch_handle, 0.0f);
+    Gimbal_ResetVisionState();
 }
 
 /**

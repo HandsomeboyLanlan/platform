@@ -52,6 +52,9 @@ void QD4310_Update(QD4310_t *motor, const uint8_t feedback[8]) {
 
     uint16_t angle_raw = (uint16_t)((feedback[7] << 8) | feedback[6]);
     motor->angle = (float)angle_raw * QD4310_TWO_PI / UINT16_MAX;
+
+    motor->feedback_received = 1;
+    motor->feedback_tick = HAL_GetTick();
 }
 
 

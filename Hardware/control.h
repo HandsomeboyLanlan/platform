@@ -9,6 +9,15 @@
 #define GIMBAL_HOME_YAW_ANGLE                   0.0f
 #define GIMBAL_HOME_PITCH_ANGLE                 0.0f
 
+// 云台速度环回零参数；回零速度越小动作越柔和，但回零时间会变长
+#define GIMBAL_ZERO_MAX_SPEED_RPM               30.0f   // 回零最大转速，单位rpm
+#define GIMBAL_ZERO_MIN_SPEED_RPM               5.0f    // 克服静摩擦的最小回零转速，单位rpm
+#define GIMBAL_ZERO_SPEED_GAIN                  2.0f    // 回零比例系数，单位rpm/deg
+#define GIMBAL_ZERO_ANGLE_DEADBAND_DEG          1.0f    // 小于该角度认为已经到达零点，单位deg
+#define GIMBAL_ZERO_CONTROL_PERIOD_MS           10U     // 回零速度命令刷新周期，单位ms
+#define GIMBAL_ZERO_FEEDBACK_TIMEOUT_MS         1000U   // 回零前等待电机反馈的最长时间，单位ms
+#define GIMBAL_ZERO_TIMEOUT_MS                  5000U   // 回零最长等待时间，防止异常时卡死
+
 // pitch轴默认上/下限位角度，单位deg；可通过Gimbal_SetPitchLimitsDeg动态修改
 #define GIMBAL_PITCH_DEFAULT_UP_LIMIT_DEG       30.0f
 #define GIMBAL_PITCH_DEFAULT_DOWN_LIMIT_DEG     30.0f

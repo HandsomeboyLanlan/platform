@@ -41,6 +41,8 @@ typedef struct {
     float speed;   // 转速，单位rpm
     float angle;   // 角度，单位弧度
     float current; // 电流，单位A
+    uint8_t feedback_received; // 是否已经收到过电机反馈，速度环回零前用于判断角度是否有效
+    uint32_t feedback_tick;    // 最近一次收到反馈的时间，单位ms
     CAN_HandleTypeDef *hcan1;
 } QD4310_t;
 
