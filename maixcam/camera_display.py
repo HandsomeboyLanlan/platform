@@ -32,6 +32,55 @@ MAX_JUMP_REJECTS = 3
 MAX_LOST_FRAMES = 5
 
 
+def select_best_rectangle(contours, min_area, max_area):
+    """从轮廓列表中筛选最像靶纸黑色矩形框的候选。"""
+    best = None
+
+    for contour in contours:
+        # 面积太小通常是噪点，面积太大通常是背景或手部连通区域。
+        area = cv2.contourArea(contour)
+        if area < min_area or area > max_area:
+            continue
+
+        # 将轮廓拟合成多边形，靶框应接近四边形。
+        perimeter = cv2.arcLength(contour, True)
+        approx = cv2.approxPolyDP(contour, APPROX_EPSILON_RATIO * perimeter, True)
+        if len(approx) != 4:
+            continue
+
+        # 正常矩形应为凸四边形，排除凹形或自交形状。
+        if not cv2.isContourConvex(approx):
+            continue
+
+        x, y, w, h = cv2.boundingRect(approx)
+        rect_area = w * h
+        if h == 0 or rect_area <= 0:
+            continue
+
+        aspect = w / h
+        if aspect < MIN_ASPECT or aspect > MAX_ASPECT:
+            continue
+
+        # 填充率太低说明轮廓不像完整矩形。
+        extent = area / rect_area
+        if extent < MIN_EXTENT:
+            continue
+
+        candidate = {
+            "area": area,
+            "rect": (x, y, w, h),
+            "center": (x + w // 2, y + h // 2),
+            "extent": extent,
+            "approx": approx,
+        }
+
+        # 当前策略：优先选择面积最大的合法矩形框。
+        if best is None or area > best["area"]:
+            best = candidate
+
+    return best
+
+
 def find_best_rectangle(img_cv):
     """在一帧 OpenCV 图像中寻找最可能的矩形靶框。"""
     frame_h, frame_w = img_cv.shape[:2]
@@ -54,56 +103,17 @@ def find_best_rectangle(img_cv):
         cv2.THRESH_BINARY_INV,
         ADAPTIVE_BLOCK_SIZE,
         ADAPTIVE_C)
-    
-    # 只提取外轮廓，减少靶面内部线条、文字或噪点的干扰。
+
+    # 优先只提取外轮廓，贴墙时黑框独立，识别最稳。
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    best = None
+    best = select_best_rectangle(contours, min_area, max_area)
+    if best:
+        return best
 
-    for contour in contours:
-        # 面积太小的轮廓大概率是噪声，直接丢弃。
-        area = cv2.contourArea(contour)
-        if area < min_area or area > max_area:
-            continue
-
-        # 将轮廓拟合成多边形，矩形目标应当近似为 4 个角点。
-        perimeter = cv2.arcLength(contour, True)
-        approx = cv2.approxPolyDP(contour, APPROX_EPSILON_RATIO * perimeter, True)
-        if len(approx) != 4:
-            continue
-
-        # 正常矩形应该是凸四边形，凹四边形或自交形状容易来自杂乱边缘。
-        if not cv2.isContourConvex(approx):
-            continue
-        
-        # 用外接矩形计算候选区域的位置、宽高和长宽比。
-        x, y, w, h = cv2.boundingRect(approx)
-        rect_area = w * h
-        if h == 0 or rect_area <= 0:
-            continue
-
-        aspect = w / h
-        if aspect < MIN_ASPECT or aspect > MAX_ASPECT:
-            continue
-
-        # 填充率太低时，说明轮廓很可能不是完整靶框。
-        extent = area / rect_area
-        if extent < MIN_EXTENT:
-            continue
-
-        # 保存候选矩形信息，后续可用于画角点、计算中心和串口发送。
-        candidate = {
-            "area": area,
-            "rect": (x, y, w, h),
-            "center": (x + w // 2, y + h // 2),
-            "extent": extent,
-            "approx": approx,
-        }
-        
-        # 当前策略：从所有候选矩形中选面积最大的一个作为靶框。
-        if best is None or area > best["area"]:
-            best = candidate
-    
-    return best
+    # 手拿靶纸时，手指或支撑杆可能和黑胶带连通，外轮廓会变成“手+靶纸”而不是靶框。
+    # 仅在外轮廓失败时再提取内外轮廓兜底，避免一直使用 RETR_LIST 带来的中心抖动。
+    contours, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    return select_best_rectangle(contours, min_area, max_area)
 
 
 def draw_points(img, points):

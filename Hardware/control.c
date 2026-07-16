@@ -328,7 +328,7 @@ void Gimbal_Track(Maixcam_Data_t maixcam_data) {
     speed_yaw = PID_Update(&pid_yaw_handle, yaw_error);
     speed_pitch = PID_Update(&pid_pitch_handle, pitch_error);
 
-    // 目标速度做斜坡限幅，避免重负载yaw轴低速一快一慢
+    // 目标速度做斜坡限幅，避免电机目标速度突变造成动作不平滑
     speed_yaw = Gimbal_LimitSpeedSlew(speed_yaw, &gimbal_yaw_speed_last, GIMBAL_YAW_SPEED_SLEW_RPM);
     speed_pitch = Gimbal_LimitSpeedSlew(speed_pitch, &gimbal_pitch_speed_last, GIMBAL_PITCH_SPEED_SLEW_RPM);
 

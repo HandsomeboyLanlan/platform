@@ -1,10 +1,12 @@
-id: first
-name: 激光打靶2.0
-version: 1.0.1
+id: second
+name: 激光打靶3.0
+version: 1.0.2
 author: Lanlan
 icon: app.png
 desc: 无
 files:
+  - app.png
+  - app.yaml
   - camera_display.py
   - main.py
   - my_uart.py
