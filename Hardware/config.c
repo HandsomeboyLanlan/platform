@@ -14,8 +14,8 @@ QD4310_t motor_pitch_handle = {
 
 /* pid_yaw初始化句柄 */
 PID_t pid_yaw_handle = {
-    .kp = 0.16f,
-    .ki = 0.002f,
+    .kp = 0.22f,
+    .ki = 0.001f,
     .kd = 0.008f,
     .last_error = 0.0f,
     .integral = 0.0f,
@@ -25,9 +25,9 @@ PID_t pid_yaw_handle = {
 
 /* pid_pitch初始化句柄 */
 PID_t pid_pitch_handle = {
-    .kp = 0.14f,
+    .kp = 0.17f,
     .ki = 0.0f,
-    .kd = 0.001f,
+    .kd = 0.002f,
     .last_error = 0.0f,
     .integral = 0.0f,
     .integral_limit = 100.0f,

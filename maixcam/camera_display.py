@@ -30,7 +30,6 @@ ADAPTIVE_C = 8
 MAX_CENTER_JUMP = 120
 MAX_JUMP_REJECTS = 3
 MAX_LOST_FRAMES = 5
-FPS_PRINT_INTERVAL = 10
 
 
 def find_best_rectangle(img_cv):
@@ -156,6 +155,11 @@ def draw_polygon(img, ordered):
         x2, y2 = int(pts[(i + 1) % 4][0]), int(pts[(i + 1) % 4][1])
         img.draw_line(x1, y1, x2, y2, image.COLOR_GREEN, thickness=2)
 
+def draw_fps(img, fps):
+    """在屏幕左上角显示视觉循环帧率，避免用 print 影响串口和中断时序。"""
+    if fps > 0:
+        img.draw_string(8, 8, "fps:%.1f" % fps, image.COLOR_YELLOW, scale=1)
+
 def get_polygon_center(ordered):
     """计算多边形的中心点坐标。"""
     tl, tr, br, bl = ordered
@@ -247,6 +251,7 @@ def run_find_rects():
         img = cam.read()
         img_cv = image.image2cv(img, False, False)
         frame_count += 1
+        fps = time.fps()
 
         # 在小图上做矩形识别，显著减少 OpenCV 计算量。
         proc_cv = cv2.resize(img_cv, (PROC_W, PROC_H), interpolation=cv2.INTER_NEAREST)
@@ -258,6 +263,7 @@ def run_find_rects():
             if lost_frames >= MAX_LOST_FRAMES:
                 last_center = None
                 jump_rejects = 0
+            draw_fps(img, fps)
             disp.show(img)
             continue
 
@@ -277,6 +283,7 @@ def run_find_rects():
             if lost_frames >= MAX_LOST_FRAMES:
                 last_center = None
                 jump_rejects = 0
+            draw_fps(img, fps)
             disp.show(img)
             continue
         
@@ -295,6 +302,7 @@ def run_find_rects():
             if lost_frames >= MAX_LOST_FRAMES:
                 last_center = None
                 jump_rejects = 0
+            draw_fps(img, fps)
             disp.show(img)
             continue
         ox, oy = int(original_center_point[0]), int(original_center_point[1])
@@ -303,7 +311,8 @@ def run_find_rects():
         if center_jump_too_large((ox, oy), last_center):
             jump_rejects += 1
             uart_com.send_no_target()
-            img.draw_string(8, 8, "jump reject", image.COLOR_YELLOW, scale=1)
+            draw_fps(img, fps)
+            img.draw_string(8, 24, "jump reject", image.COLOR_YELLOW, scale=1)
             if jump_rejects >= MAX_JUMP_REJECTS:
                 last_center = None
                 jump_rejects = 0
@@ -325,10 +334,6 @@ def run_find_rects():
         draw_polygon(img, ordered)
         img.draw_circle(ox, oy, 4, image.COLOR_RED, thickness=-1)
         img.draw_circle(screen_center[0], screen_center[1], 4, image.COLOR_BLUE, thickness=-1)
-        img.draw_string(8, 8, f"err:({err_x}, {err_y})", image.COLOR_GREEN, scale=1)
+        draw_fps(img, fps)
+        img.draw_string(8, 24, f"err:({err_x}, {err_y})", image.COLOR_GREEN, scale=1)
         disp.show(img)
-
-        # 打印当前处理耗时和 FPS，用于调参时观察性能。
-        fps = time.fps()
-        if fps > 0 and frame_count % FPS_PRINT_INTERVAL == 0:
-            print(f"time:{1000 / fps:.02f}ms, fps:{fps:.02f}")
