@@ -10,6 +10,7 @@ static float gimbal_pitch_error_filter;
 static float gimbal_yaw_speed_last;
 static float gimbal_pitch_speed_last;
 static uint8_t gimbal_error_filter_initialized;
+static uint16_t gimbal_lost_target_frames;
 
 /**
  * @brief 求浮点数绝对值
@@ -286,17 +287,27 @@ void Gimbal_Track(Maixcam_Data_t maixcam_data) {
     float speed_yaw;
     float speed_pitch;
 
-    // 目标丢失，积分清零，yaw轴进入搜索自转，直到MaixCam重新识别到目标。
+    // 目标短暂丢失时先停住，连续多帧无目标后再让yaw轴搜索，避免误识别瞬间触发自转。
     if (!maixcam_data.target_valid) {
+        if (gimbal_lost_target_frames < GIMBAL_SEARCH_LOST_FRAME_THRESHOLD) {
+            gimbal_lost_target_frames++;
+        }
+
         pid_yaw_handle.integral   = 0.0f;
         pid_pitch_handle.integral = 0.0f;
         pid_yaw_handle.last_error = 0.0f;
         pid_pitch_handle.last_error = 0.0f;
         Gimbal_ResetVisionState();
-        Set_Motor_Speed(&motor_yaw_handle, GIMBAL_SEARCH_YAW_SPEED_RPM);
+        if (gimbal_lost_target_frames >= GIMBAL_SEARCH_LOST_FRAME_THRESHOLD) {
+            Set_Motor_Speed(&motor_yaw_handle, GIMBAL_SEARCH_YAW_SPEED_RPM);
+        } else {
+            Set_Motor_Speed(&motor_yaw_handle, 0);
+        }
         Set_Motor_Speed(&motor_pitch_handle, 0);
         return;
     }
+
+    gimbal_lost_target_frames = 0;
 
     // MaixCam发送的是靶心相对摄像头中心的误差；这里叠加激光与摄像头不共轴补偿。
     // X补偿为正时，云台会让摄像头中心对准靶心右侧一点，用于修正激光落点偏右的问题。

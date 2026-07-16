@@ -44,6 +44,7 @@
 
 // 目标丢失后的yaw轴搜索参数；靶纸在云台后方时，yaw轴低速自转直到重新识别到目标
 #define GIMBAL_SEARCH_YAW_SPEED_RPM             20.0f
+#define GIMBAL_SEARCH_LOST_FRAME_THRESHOLD      10U     // 连续无目标超过该帧数后才开始搜索，避免短暂误识别触发自转
 
 /* MaixCam数据结构体 */
 typedef struct {
