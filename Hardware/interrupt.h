@@ -17,12 +17,12 @@
 #define FRAME_DATA_TAIL2    0x0A
 #define FRAME_DATA_LEN      5       // status(1) + X(2) + Y(2) 数据帧
 
-#define UART3_RX_BUFFER_SIZE 32
+#define MAIXCAM_RX_BUFFER_SIZE 32
 
 /* 串口初始化句柄 */
 typedef struct {
     UART_HandleTypeDef *huart;
-    uint8_t uart_rx_buffer[UART3_RX_BUFFER_SIZE];
+    uint8_t uart_rx_buffer[MAIXCAM_RX_BUFFER_SIZE];
 } UART_Rx_Data_t;
 
 /* MaixCam帧解析状态机 */
@@ -34,6 +34,7 @@ typedef enum {
     FRAME_TAIL2,
 } FrameState_t;
 
+void MaixCam_StartReceive(void);
 uint8_t MaixCam_DataReady(void);
 
 #endif

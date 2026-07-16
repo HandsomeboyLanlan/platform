@@ -4,52 +4,70 @@
 #include "vofa_debug.h"
 
 static volatile uint8_t g_maixcam_ready;  // 新数据就绪标志
+static FrameState_t g_maixcam_frame_state = FRAME_HEAD1;
+static uint8_t g_maixcam_frame_buf[FRAME_DATA_LEN];
+static uint8_t g_maixcam_frame_idx;
+
+/**
+  * @brief  重置MaixCam串口解析状态
+  * @note   串口错误或半包异常后调用，避免旧数据影响下一帧
+  */
+static void MaixCam_ResetParser(void) {
+    g_maixcam_frame_state = FRAME_HEAD1;
+    g_maixcam_frame_idx = 0;
+}
+
+/**
+  * @brief  启动MaixCam串口DMA空闲接收
+  * @note   MaixCam上电较慢或串口异常后，可重复调用恢复接收
+  */
+void MaixCam_StartReceive(void) {
+    HAL_UARTEx_ReceiveToIdle_DMA(uart1_rx_data_handle.huart,
+                                 uart1_rx_data_handle.uart_rx_buffer,
+                                 MAIXCAM_RX_BUFFER_SIZE);
+}
 
 /**
   * @brief  MaixCam串口数据解析函数，逐字节解析
   * @param  byte: 接收到的字节
   */
 static uint8_t MaixCam_ParseByte(uint8_t byte) {
-    static FrameState_t state = FRAME_HEAD1;
-    static uint8_t buf[FRAME_DATA_LEN];
-    static uint8_t idx;
-
-    switch (state) {
+    switch (g_maixcam_frame_state) {
         case FRAME_HEAD1:
-            if (byte == FRAME_DATA_HEAD1) state = FRAME_HEAD2;
+            if (byte == FRAME_DATA_HEAD1) g_maixcam_frame_state = FRAME_HEAD2;
             break;
         case FRAME_HEAD2:
             if (byte == FRAME_DATA_HEAD2) {
-                state = FRAME_DATA;
-                idx  = 0;
+                g_maixcam_frame_state = FRAME_DATA;
+                g_maixcam_frame_idx  = 0;
             } else if (byte != FRAME_DATA_HEAD1) {
-                state = FRAME_HEAD1;
+                g_maixcam_frame_state = FRAME_HEAD1;
             }
             break;
         case FRAME_DATA:
-            buf[idx ++] = byte;
-            if (idx >= FRAME_DATA_LEN) state = FRAME_TAIL1;
+            g_maixcam_frame_buf[g_maixcam_frame_idx ++] = byte;
+            if (g_maixcam_frame_idx >= FRAME_DATA_LEN) g_maixcam_frame_state = FRAME_TAIL1;
             break;
         case FRAME_TAIL1:
             if (byte == FRAME_DATA_TAIL1) {
-                state = FRAME_TAIL2;
+                g_maixcam_frame_state = FRAME_TAIL2;
             } else {
-                state = (byte == FRAME_DATA_HEAD1) ? FRAME_HEAD2 : FRAME_HEAD1;
+                g_maixcam_frame_state = (byte == FRAME_DATA_HEAD1) ? FRAME_HEAD2 : FRAME_HEAD1;
             }
             break;
         case FRAME_TAIL2:
             if (byte == FRAME_DATA_TAIL2) {
-                int16_t x = (int16_t)(buf[1] | ((int16_t)buf[2] << 8));
-                int16_t y = (int16_t)(buf[3] | ((int16_t)buf[4] << 8));
+                int16_t x = (int16_t)(g_maixcam_frame_buf[1] | ((int16_t)g_maixcam_frame_buf[2] << 8));
+                int16_t y = (int16_t)(g_maixcam_frame_buf[3] | ((int16_t)g_maixcam_frame_buf[4] << 8));
 
-                maixcam_data_handle.target_valid = buf[0];
-                if (buf[0]) {
+                maixcam_data_handle.target_valid = g_maixcam_frame_buf[0];
+                if (g_maixcam_frame_buf[0]) {
                     maixcam_data_handle.pixel_dx = (float)x;
                     maixcam_data_handle.pixel_dy = (float)y;
                 }
                 g_maixcam_ready = 1;
             }
-            state = (byte == FRAME_DATA_HEAD1) ? FRAME_HEAD2 : FRAME_HEAD1;
+            g_maixcam_frame_state = (byte == FRAME_DATA_HEAD1) ? FRAME_HEAD2 : FRAME_HEAD1;
             break;
     }
     return 0;
@@ -95,12 +113,26 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
             MaixCam_ParseByte(uart1_rx_data_handle.uart_rx_buffer[i]);
         }
         /* 重新启动DMA接收 */
-        HAL_UARTEx_ReceiveToIdle_DMA(huart, uart1_rx_data_handle.uart_rx_buffer, UART3_RX_BUFFER_SIZE);
+        MaixCam_StartReceive();
     }
 }
 
 /**
-  * @brief  UART接收完成中断回调
+  * @brief  UART错误回调函数
+  * @param  huart: UART句柄
+  * @retval None
+  */
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART1) {
+        // MaixCam由控制板供电，上电过程可能产生串口错误；清解析状态并重新开启接收。
+        MaixCam_ResetParser();
+        HAL_UART_AbortReceive(huart);
+        MaixCam_StartReceive();
+    }
+}
+
+/**
+  * @brief  UART接收完成中断回调，用来进行vofa调试
   * @param  huart: UART句柄
   * @retval None
   */

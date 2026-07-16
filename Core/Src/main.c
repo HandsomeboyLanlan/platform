@@ -103,7 +103,7 @@ int main(void)
   Control_Init();       // 云台控制初始化
   Gimbal_GotoZero();    // 云台回零
   VOFA_DebugInit(&huart3);
-  HAL_UARTEx_ReceiveToIdle_DMA(uart1_rx_data_handle.huart, uart1_rx_data_handle.uart_rx_buffer, UART3_RX_BUFFER_SIZE);
+  MaixCam_StartReceive(); // 启动MaixCam串口接收，MaixCam后启动时也能持续等待数据
   /* USER CODE END 2 */
 
   /* Infinite loop */
