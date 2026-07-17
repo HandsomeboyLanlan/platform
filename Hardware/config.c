@@ -20,7 +20,7 @@ PID_t pid_yaw_handle = {
     .last_error = 0.0f,
     .integral = 0.0f,
     .integral_limit = 100.0f,
-    .output_limit = 120.0f,
+    .output_limit = 180.0f,
 };
 
 /* pid_pitch初始化句柄 */

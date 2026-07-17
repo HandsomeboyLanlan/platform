@@ -3,6 +3,7 @@ from maix import app, camera, display, time, image
 import cv2
 import numpy as np
 from my_uart import UartCom
+from yolo_target_search import load_yolo_detector, find_rectangle_by_yolo_roi
 
 # 相机分辨率，后续显示、中心点和误差计算都基于这个尺寸。
 CAM_W = 512
@@ -249,6 +250,7 @@ def center_jump_too_large(center, last_center):
 def run_find_rects():
     """启动相机预览，并在循环中持续查找矩形靶框。"""
     uart_com = UartCom()
+    yolo_detector = load_yolo_detector()
     cam = camera.Camera(CAM_W, CAM_H)
     disp = display.Display()
     last_center = None
@@ -263,26 +265,46 @@ def run_find_rects():
         frame_count += 1
         fps = time.fps()
 
-        # 在小图上做矩形识别，显著减少 OpenCV 计算量。
-        proc_cv = cv2.resize(img_cv, (PROC_W, PROC_H), interpolation=cv2.INTER_NEAREST)
-        best = find_best_rectangle(proc_cv)
-        if not best:
-            # 无目标
-            uart_com.send_no_target()
-            lost_frames += 1
-            if lost_frames >= MAX_LOST_FRAMES:
-                last_center = None
+        # 搜索状态下先用 YOLO 找疑似靶纸，再用原来的矩形算法验证。
+        # 这样主控 yaw 自转时不会因为背景里的普通矩形直接进入跟踪。
+        search_mode = last_center is None
+        if search_mode and yolo_detector is not None:
+            best, ordered, yolo_obj = find_rectangle_by_yolo_roi(
+                yolo_detector,
+                img,
+                img_cv,
+                find_best_rectangle,
+                order_points)
+            if not best:
+                # 没有通过 YOLO + OpenCV 双重验证时，只发送无目标状态，让主控继续自转搜索。
+                uart_com.send_no_target()
+                lost_frames += 1
                 jump_rejects = 0
-            draw_fps(img, fps)
-            disp.show(img)
-            continue
+                draw_fps(img, fps)
+                img.draw_string(8, 24, "search yolo", image.COLOR_YELLOW, scale=1)
+                disp.show(img)
+                continue
+        else:
+            # 已经锁定目标后，继续使用原来的 OpenCV 追踪流程，保证响应速度。
+            proc_cv = cv2.resize(img_cv, (PROC_W, PROC_H), interpolation=cv2.INTER_NEAREST)
+            best = find_best_rectangle(proc_cv)
+            if not best:
+                # 无目标
+                uart_com.send_no_target()
+                lost_frames += 1
+                if lost_frames >= MAX_LOST_FRAMES:
+                    last_center = None
+                    jump_rejects = 0
+                draw_fps(img, fps)
+                disp.show(img)
+                continue
 
-        # 将小图中识别到的角点放大回原图坐标，用于显示、逆透视和串口误差计算。
-        ordered = order_points(best["approx"])
-        scale_x = img_cv.shape[1] / PROC_W
-        scale_y = img_cv.shape[0] / PROC_H
-        ordered[:, 0] *= scale_x
-        ordered[:, 1] *= scale_y
+            # 将小图中识别到的角点放大回原图坐标，用于显示、逆透视和串口误差计算。
+            ordered = order_points(best["approx"])
+            scale_x = img_cv.shape[1] / PROC_W
+            scale_y = img_cv.shape[0] / PROC_H
+            ordered[:, 0] *= scale_x
+            ordered[:, 1] *= scale_y
 
         # 当前追踪只需要矩阵和中心点，不生成拉正图，节省一大块计算量。
         warp_result = warp_perspective_target(img_cv, ordered, make_image=False)

@@ -1,6 +1,6 @@
-id: second
-name: 激光打靶3.0
-version: 1.0.2
+id: five
+name: 激光打靶
+version: 1.0.5
 author: Lanlan
 icon: app.png
 desc: 无
@@ -10,3 +10,4 @@ files:
   - camera_display.py
   - main.py
   - my_uart.py
+  - yolo_target_search.py

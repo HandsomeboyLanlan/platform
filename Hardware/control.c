@@ -299,7 +299,8 @@ void Gimbal_Track(Maixcam_Data_t maixcam_data) {
         pid_pitch_handle.last_error = 0.0f;
         Gimbal_ResetVisionState();
         if (gimbal_lost_target_frames >= GIMBAL_SEARCH_LOST_FRAME_THRESHOLD) {
-            Set_Motor_Speed(&motor_yaw_handle, GIMBAL_SEARCH_YAW_SPEED_RPM);
+            // 丢失靶纸后让yaw轴反向自转搜索，使搜索方向与小车循迹方向相反。
+            Set_Motor_Speed(&motor_yaw_handle, -GIMBAL_SEARCH_YAW_SPEED_RPM);
         } else {
             Set_Motor_Speed(&motor_yaw_handle, 0);
         }

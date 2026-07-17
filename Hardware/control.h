@@ -19,7 +19,7 @@
 #define GIMBAL_ZERO_TIMEOUT_MS                  5000U   // 回零最长等待时间，防止异常时卡死
 
 // pitch轴默认上/下限位角度，单位deg；可通过Gimbal_SetPitchLimitsDeg动态修改
-#define GIMBAL_PITCH_DEFAULT_UP_LIMIT_DEG       30.0f
+#define GIMBAL_PITCH_DEFAULT_UP_LIMIT_DEG       40.0f
 #define GIMBAL_PITCH_DEFAULT_DOWN_LIMIT_DEG     30.0f
 #define GIMBAL_PITCH_MAX_LIMIT_DEG              170.0f  // pitch轴上下限位限幅
 
@@ -32,18 +32,18 @@
 #define GIMBAL_YAW_PIXEL_DEADBAND               3.0f
 #define GIMBAL_PITCH_PIXEL_DEADBAND             2.0f
 
-#define GIMBAL_ERROR_FILTER_ALPHA               0.40f   // 视觉误差一阶低通滤波系数，越小越稳，越大响应越快
+#define GIMBAL_ERROR_FILTER_ALPHA               0.60f   // 视觉误差一阶低通滤波系数，越小越稳，越大响应越快
 
 // 视觉PID输出速度斜坡限幅，单位rpm/次；yaw轴负载重，变化率要小一点
-#define GIMBAL_YAW_SPEED_SLEW_RPM               2.0f
+#define GIMBAL_YAW_SPEED_SLEW_RPM               6.0f
 #define GIMBAL_PITCH_SPEED_SLEW_RPM             1.5f
 
 // 激光与摄像头不共轴时的像素补偿，单位pixel；先按实际打点方向微调
-#define GIMBAL_LASER_OFFSET_X_PIXEL             -44.0f  // 激光落点偏右时增大该值，偏左时减小或设为负数
-#define GIMBAL_LASER_OFFSET_Y_PIXEL             -5.5f    // 激光落点偏下时增大该值，偏上时减小或设为负数
+#define GIMBAL_LASER_OFFSET_X_PIXEL             -43.5f  // 激光落点偏右时增大该值，偏左时减小或设为负数
+#define GIMBAL_LASER_OFFSET_Y_PIXEL             -15.5f    // 激光落点偏下时增大该值，偏上时减小或设为负数
 
 // 目标丢失后的yaw轴搜索参数；靶纸在云台后方时，yaw轴低速自转直到重新识别到目标
-#define GIMBAL_SEARCH_YAW_SPEED_RPM             20.0f
+#define GIMBAL_SEARCH_YAW_SPEED_RPM             15.0f
 #define GIMBAL_SEARCH_LOST_FRAME_THRESHOLD      10U     // 连续无目标超过该帧数后才开始搜索，避免短暂误识别触发自转
 
 /* MaixCam数据结构体 */

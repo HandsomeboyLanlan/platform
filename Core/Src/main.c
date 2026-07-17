@@ -115,7 +115,7 @@ int main(void)
     if (MaixCam_DataReady()) {
       Gimbal_Track(maixcam_data_handle);  // 云台视觉跟踪
     }
-    VOFA_DebugSendPeriod(0);
+    VOFA_DebugSendPeriod(0);  // vofa调试信息
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
