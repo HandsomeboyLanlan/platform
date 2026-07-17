@@ -59,6 +59,28 @@ static float Gimbal_FilterVisionError(float raw_error, float *filter_value) {
 }
 
 /**
+ * @brief yaw轴分段追踪，兼顾靶心附近稳定和大误差快速拉回
+ * @param yaw_error yaw视觉误差，单位pixel
+ * @param pid_speed yaw轴PID输出速度，单位rpm
+ * @return 分段处理后的yaw目标速度，单位rpm
+ */
+static float Gimbal_ApplyYawSegmentMode(float yaw_error, float pid_speed) {
+    float abs_error = Gimbal_Abs(yaw_error);
+    float speed = pid_speed;
+
+    // 靶心快到画面边缘时直接给抢救速度，优先防止脱靶。
+    if (abs_error >= GIMBAL_YAW_RESCUE_ERROR_PIXEL) {
+        speed = (yaw_error > 0.0f) ? GIMBAL_YAW_RESCUE_SPEED_RPM : -GIMBAL_YAW_RESCUE_SPEED_RPM;
+    } else if (abs_error >= GIMBAL_YAW_BOOST_ERROR_PIXEL) {
+        // 中等误差时放大PID输出，提高直角处和快速横移时的响应。
+        speed *= GIMBAL_YAW_BOOST_GAIN;
+    }
+
+    speed = Gimbal_Clamp(speed, -pid_yaw_handle.output_limit, pid_yaw_handle.output_limit);
+    return speed;
+}
+
+/**
  * @brief 限制目标速度每次变化量，让重负载yaw轴动作更平滑
  * @param target_speed PID输出的目标速度，单位rpm
  * @param last_speed 上一次下发的目标速度，单位rpm
@@ -340,6 +362,7 @@ void Gimbal_Track(Maixcam_Data_t maixcam_data) {
 
     speed_yaw = PID_Update(&pid_yaw_handle, yaw_error);
     speed_pitch = PID_Update(&pid_pitch_handle, pitch_error);
+    speed_yaw = Gimbal_ApplyYawSegmentMode(yaw_error, speed_yaw);
 
     // 目标速度做斜坡限幅，避免电机目标速度突变造成动作不平滑
     speed_yaw = Gimbal_LimitSpeedSlew(speed_yaw, &gimbal_yaw_speed_last, GIMBAL_YAW_SPEED_SLEW_RPM);
