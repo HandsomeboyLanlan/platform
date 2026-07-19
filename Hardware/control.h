@@ -3,13 +3,13 @@
 
 #include "QD4310.h"
 
-#define GIMBAL_RAD_TO_DEG 57.2957795f   // 弧度转角度系数，180/pi
+#define GIMBAL_RAD_TO_DEG                       57.2957795f   // 弧度转角度系数，180/pi
 
-// 云台回零角度，单位rad；pitch软限位以GIMBAL_HOME_PITCH_ANGLE为0点
-#define GIMBAL_HOME_YAW_ANGLE                   0.0f
-#define GIMBAL_HOME_PITCH_ANGLE                 0.0f
+/* 使用串口通过MobaXterm设置零点角度 */
+#define GIMBAL_HOME_YAW_ANGLE                   0.0f    // yaw轴电机回零角度
+#define GIMBAL_HOME_PITCH_ANGLE                 0.0f    // pitch轴电机回零角度
 
-// 云台速度环回零参数；回零速度越小动作越柔和，但回零时间会变长
+/* 云台速度环回零参数；回零速度越小动作越柔和，但回零时间会变长 */ 
 #define GIMBAL_ZERO_MAX_SPEED_RPM               30.0f   // 回零最大转速，单位rpm
 #define GIMBAL_ZERO_MIN_SPEED_RPM               5.0f    // 克服静摩擦的最小回零转速，单位rpm
 #define GIMBAL_ZERO_SPEED_GAIN                  2.0f    // 回零比例系数，单位rpm/deg
@@ -18,9 +18,9 @@
 #define GIMBAL_ZERO_FEEDBACK_TIMEOUT_MS         1000U   // 回零前等待电机反馈的最长时间，单位ms
 #define GIMBAL_ZERO_TIMEOUT_MS                  5000U   // 回零最长等待时间，防止异常时卡死
 
-// pitch轴默认上/下限位角度，单位deg；可通过Gimbal_SetPitchLimitsDeg动态修改
-#define GIMBAL_PITCH_DEFAULT_UP_LIMIT_DEG       40.0f
-#define GIMBAL_PITCH_DEFAULT_DOWN_LIMIT_DEG     30.0f
+/* pitch轴默认上/下限位角度，单位deg；可通过Gimbal_SetPitchLimitsDeg动态修改 */ 
+#define GIMBAL_PITCH_DEFAULT_UP_LIMIT_DEG       40.0f   // 上限位
+#define GIMBAL_PITCH_DEFAULT_DOWN_LIMIT_DEG     30.0f   // 下限位
 #define GIMBAL_PITCH_MAX_LIMIT_DEG              170.0f  // pitch轴上下限位限幅
 
 #define GIMBAL_PITCH_POSITIVE_SPEED_IS_UP       1.0f    // 如果pitch正速度会让镜头向下运动，则将该宏改为-1.0f
@@ -37,7 +37,7 @@
 // yaw轴分段追踪参数，单位pixel/rpm；小误差保持PID稳定，大误差提高响应，防止直角处靶纸跑出视野。
 #define GIMBAL_YAW_BOOST_ERROR_PIXEL            20.0f   // yaw误差超过该像素后进入加速追踪区
 #define GIMBAL_YAW_BOOST_GAIN                   1.9f    // 加速追踪区内对yaw PID输出速度的放大倍数
-#define GIMBAL_YAW_RESCUE_ERROR_PIXEL           50.0f  // yaw误差超过该像素后进入抢救模式，优先防止靶纸出视野
+#define GIMBAL_YAW_RESCUE_ERROR_PIXEL           50.0f   // yaw误差超过该像素后进入抢救模式，优先防止靶纸出视野
 #define GIMBAL_YAW_RESCUE_SPEED_RPM             240.0f  // 抢救模式下直接下发的yaw目标转速，单位rpm
 
 // 视觉PID输出速度斜坡限幅，单位rpm/次；yaw轴负载重，变化率要小一点
@@ -46,7 +46,7 @@
 
 // 激光与摄像头不共轴时的像素补偿，单位pixel；先按实际打点方向微调
 #define GIMBAL_LASER_OFFSET_X_PIXEL             -43.5f  // 激光落点偏右时增大该值，偏左时减小或设为负数
-#define GIMBAL_LASER_OFFSET_Y_PIXEL             -15.5f    // 激光落点偏下时增大该值，偏上时减小或设为负数
+#define GIMBAL_LASER_OFFSET_Y_PIXEL             -15.5f  // 激光落点偏下时增大该值，偏上时减小或设为负数
 
 // 目标丢失后的yaw轴搜索参数；靶纸在云台后方时，yaw轴低速自转直到重新识别到目标
 #define GIMBAL_SEARCH_YAW_SPEED_RPM             15.0f
