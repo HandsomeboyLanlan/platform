@@ -34,12 +34,6 @@
 
 #define GIMBAL_ERROR_FILTER_ALPHA               0.60f   // 视觉误差一阶低通滤波系数，越小越稳，越大响应越快
 
-// yaw轴分段追踪参数，单位pixel/rpm；小误差保持PID稳定，大误差提高响应，防止直角处靶纸跑出视野。
-#define GIMBAL_YAW_BOOST_ERROR_PIXEL            20.0f   // yaw误差超过该像素后进入加速追踪区
-#define GIMBAL_YAW_BOOST_GAIN                   1.9f    // 加速追踪区内对yaw PID输出速度的放大倍数
-#define GIMBAL_YAW_RESCUE_ERROR_PIXEL           50.0f   // yaw误差超过该像素后进入抢救模式，优先防止靶纸出视野
-#define GIMBAL_YAW_RESCUE_SPEED_RPM             240.0f  // 抢救模式下直接下发的yaw目标转速，单位rpm
-
 // 视觉PID输出速度斜坡限幅，单位rpm/次；yaw轴负载重，变化率要小一点
 #define GIMBAL_YAW_SPEED_SLEW_RPM               6.0f
 #define GIMBAL_PITCH_SPEED_SLEW_RPM             1.5f

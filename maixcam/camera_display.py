@@ -32,6 +32,19 @@ MAX_CENTER_JUMP = 120
 MAX_JUMP_REJECTS = 3
 MAX_LOST_FRAMES = 5
 
+# ROI跟踪参数：
+# 已经锁定靶纸后，不再每帧都对整张图做OpenCV识别，而是优先在上一帧靶纸附近的小区域内识别。
+# 这样可以明显减少阈值分割和轮廓搜索的像素数量，提高视觉帧率。
+TRACK_ROI_SCALE = 2.2
+TRACK_ROI_MIN_MARGIN = 32
+
+# α-β预测参数：
+# 识别成功时更新靶心位置和速度；短暂丢失时用速度预测几帧，避免云台因为偶发丢帧突然停住。
+# alpha越大越相信当前测量值，beta越大速度更新越快；PREDICT_MAX_LOST_FRAMES不要太大，避免丢目标后长时间盲追。
+AB_FILTER_ALPHA = 0.75
+AB_FILTER_BETA = 0.25
+PREDICT_MAX_LOST_FRAMES = 3
+
 
 def select_best_rectangle(contours, min_area, max_area):
     """从轮廓列表中筛选最像靶纸黑色矩形框的候选。"""
@@ -247,6 +260,47 @@ def center_jump_too_large(center, last_center):
     return dx * dx + dy * dy > MAX_CENTER_JUMP * MAX_CENTER_JUMP
 
 
+def get_tracking_roi(last_ordered, frame_w, frame_h):
+    """根据上一帧靶框位置生成跟踪ROI，返回(x1, y1, x2, y2)。"""
+    if last_ordered is None:
+        return None
+
+    x, y, w, h = cv2.boundingRect(last_ordered.astype("int32"))
+    if w <= 0 or h <= 0:
+        return None
+
+    margin = max(TRACK_ROI_MIN_MARGIN, int(max(w, h) * (TRACK_ROI_SCALE - 1.0) * 0.5))
+    x1 = max(0, x - margin)
+    y1 = max(0, y - margin)
+    x2 = min(frame_w, x + w + margin)
+    y2 = min(frame_h, y + h + margin)
+
+    if x2 <= x1 or y2 <= y1:
+        return None
+
+    return x1, y1, x2, y2
+
+
+def find_rectangle_in_roi(img_cv, roi):
+    """在ROI区域内查找矩形，并把角点坐标换算回原图坐标。"""
+    if not roi:
+        return None, None
+
+    x1, y1, x2, y2 = roi
+    roi_cv = img_cv[y1:y2, x1:x2]
+    if roi_cv.size == 0:
+        return None, None
+
+    best = find_best_rectangle(roi_cv)
+    if not best:
+        return None, None
+
+    ordered = order_points(best["approx"])
+    ordered[:, 0] += x1
+    ordered[:, 1] += y1
+    return best, ordered
+
+
 def run_find_rects():
     """启动相机预览，并在循环中持续查找矩形靶框。"""
     uart_com = UartCom()
@@ -254,6 +308,7 @@ def run_find_rects():
     cam = camera.Camera(CAM_W, CAM_H)
     disp = display.Display()
     last_center = None
+    last_ordered = None
     lost_frames = 0
     jump_rejects = 0
     frame_count = 0
@@ -280,31 +335,27 @@ def run_find_rects():
                 uart_com.send_no_target()
                 lost_frames += 1
                 jump_rejects = 0
+                last_ordered = None
                 draw_fps(img, fps)
                 img.draw_string(8, 24, "search yolo", image.COLOR_YELLOW, scale=1)
                 disp.show(img)
                 continue
         else:
-            # 已经锁定目标后，继续使用原来的 OpenCV 追踪流程，保证响应速度。
-            proc_cv = cv2.resize(img_cv, (PROC_W, PROC_H), interpolation=cv2.INTER_NEAREST)
-            best = find_best_rectangle(proc_cv)
+            # 已经锁定目标后，优先只在上一帧靶框附近的ROI内识别，提高帧率。
+            # ROI失败时再回退到原来的整帧小图识别，避免目标快速移动时直接丢失。
+            roi = get_tracking_roi(last_ordered, img_cv.shape[1], img_cv.shape[0])
+            best, ordered = find_rectangle_in_roi(img_cv, roi)
             if not best:
-                # 无目标
+                # ROI跟踪失败时不直接退回整帧OpenCV，否则会绕过YOLO验证，重新误识别背景矩形。
+                # 这里清除锁定状态，下一帧回到YOLO搜索验证流程。
                 uart_com.send_no_target()
                 lost_frames += 1
-                if lost_frames >= MAX_LOST_FRAMES:
-                    last_center = None
-                    jump_rejects = 0
+                last_center = None
+                last_ordered = None
+                jump_rejects = 0
                 draw_fps(img, fps)
                 disp.show(img)
                 continue
-
-            # 将小图中识别到的角点放大回原图坐标，用于显示、逆透视和串口误差计算。
-            ordered = order_points(best["approx"])
-            scale_x = img_cv.shape[1] / PROC_W
-            scale_y = img_cv.shape[0] / PROC_H
-            ordered[:, 0] *= scale_x
-            ordered[:, 1] *= scale_y
 
         # 当前追踪只需要矩阵和中心点，不生成拉正图，节省一大块计算量。
         warp_result = warp_perspective_target(img_cv, ordered, make_image=False)
@@ -314,6 +365,7 @@ def run_find_rects():
             lost_frames += 1
             if lost_frames >= MAX_LOST_FRAMES:
                 last_center = None
+                last_ordered = None
                 jump_rejects = 0
             draw_fps(img, fps)
             disp.show(img)
@@ -333,6 +385,7 @@ def run_find_rects():
             lost_frames += 1
             if lost_frames >= MAX_LOST_FRAMES:
                 last_center = None
+                last_ordered = None
                 jump_rejects = 0
             draw_fps(img, fps)
             disp.show(img)
@@ -347,11 +400,13 @@ def run_find_rects():
             img.draw_string(8, 24, "jump reject", image.COLOR_YELLOW, scale=1)
             if jump_rejects >= MAX_JUMP_REJECTS:
                 last_center = None
+                last_ordered = None
                 jump_rejects = 0
             disp.show(img)
             continue
 
         last_center = (ox, oy)
+        last_ordered = ordered.copy()
         lost_frames = 0
         jump_rejects = 0
 
